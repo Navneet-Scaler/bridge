@@ -10,7 +10,7 @@ Bridge does **not** create its own database connection. It shares Postgres with
 Cadence, and Cadence's provisioning script already registers that connection
 under the name given by ``METABASE_DATABASE_NAME`` (default ``"Cadence"``).
 Creating a second connection to the same database would let the two dashboards'
-schema caches drift out of sync for no reason — this script looks up the
+schema caches drift out of sync for no reason. This script looks up the
 existing connection and adds a second dashboard against it.
 
 Run against an already-provisioned instance:
@@ -40,7 +40,7 @@ logger = logging.getLogger("bridge.metabase")
 
 QUESTIONS_PATH = PROJECT_ROOT / "sql" / "dashboard_questions.sql"
 
-DASHBOARD_NAME = "Bridge — LAMF Pipeline"
+DASHBOARD_NAME = "Bridge: LAMF Pipeline"
 DASHBOARD_DESCRIPTION = (
     "LAMF cross-sell pipeline health: funnel, disbursal rate against the assumed "
     "band, loan book composition, the nudge's effect on SIP breakage, and the "
@@ -72,7 +72,7 @@ CARD_LAYOUT = {
 
 
 class MetabaseClient:
-    """Thin Metabase API client — session auth and JSON in, JSON out.
+    """Thin Metabase API client. Session auth and JSON in, JSON out.
 
     Deliberately duplicated from Cadence's client rather than imported across
     repos: Bridge and Cadence are separate packages with separate virtualenvs,
@@ -110,7 +110,7 @@ class MetabaseClient:
                 if self.get("health").get("status") == "ok":
                     logger.info("metabase is healthy")
                     return
-            except Exception:  # noqa: BLE001 — any failure here just means "not up yet"
+            except Exception:  # noqa: BLE001 -- any failure here just means "not up yet"
                 pass
             time.sleep(5)
         raise TimeoutError(f"metabase did not become healthy within {timeout}s")
@@ -123,10 +123,10 @@ class MetabaseClient:
 def parse_questions(path: Path) -> dict[int, tuple[str, str]]:
     """Split ``dashboard_questions.sql`` into ``{number: (title, sql)}``."""
     text = path.read_text()
-    pattern = re.compile(r"^-- CARD (\d+) — (.+?)$", re.MULTILINE)
+    pattern = re.compile(r"^-- CARD (\d+): (.+?)$", re.MULTILINE)
     matches = list(pattern.finditer(text))
     if not matches:
-        raise ValueError(f"no '-- CARD n — title' headers found in {path}")
+        raise ValueError(f"no '-- CARD n: title' headers found in {path}")
 
     questions: dict[int, tuple[str, str]] = {}
     for index, match in enumerate(matches):
@@ -151,7 +151,7 @@ def find_database_id(client: MetabaseClient, name: str) -> int:
 
     Does NOT create one. If Cadence's provisioning has not run yet, this fails
     loudly with the fix, rather than silently registering a second connection
-    to the same Postgres instance under a different name — two connections to
+    to the same Postgres instance under a different name. Two connections to
     one database is exactly the kind of drift this whole file exists to avoid.
     """
     payload = client.get("database")
@@ -164,7 +164,7 @@ def find_database_id(client: MetabaseClient, name: str) -> int:
     raise RuntimeError(
         f"no Metabase database connection named {name!r} was found. Bridge shares "
         "Cadence's Postgres and expects Cadence's provisioning script to have "
-        "already registered it — run `python scripts/provision_metabase.py` in "
+        "already registered it, run `python scripts/provision_metabase.py` in "
         "the Cadence repo first."
     )
 
@@ -181,7 +181,7 @@ def upsert_card(
         },
         "display": CARD_DISPLAY.get(number, "table"),
         "visualization_settings": {},
-        "description": f"Card {number} — defined in sql/dashboard_questions.sql (Bridge)",
+        "description": f"Card {number}, defined in sql/dashboard_questions.sql (Bridge)",
     }
 
     if title in existing:
@@ -248,7 +248,7 @@ def main() -> int:
     password = os.getenv("METABASE_ADMIN_PASSWORD")
     if not password:
         logger.error(
-            "METABASE_ADMIN_PASSWORD is not set. Add it to .env — it is a real "
+            "METABASE_ADMIN_PASSWORD is not set. Add it to .env, it is a real "
             "credential even on a local instance, so it is never defaulted here."
         )
         return 2

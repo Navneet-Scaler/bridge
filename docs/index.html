@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge: LAMF Cross-Sell &amp; Unit Economics Engine</title>
+<meta name="description" content="Live findings from the Bridge LAMF cross-sell engine: propensity model, unit economics, and nudge validation results.">
+<style>
+  :root {
+    color-scheme: light;
+    --surface: #fcfcfb;
+    --surface-2: #f4f3f0;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #898781;
+    --line: #e1e0d9;
+    --blue: #2a78d6;
+    --orange: #eb6834;
+    --green: #0ca30c;
+    --red: #d03b3b;
+    --card-radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface: #1a1a19;
+      --surface-2: #232322;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-3: #898781;
+      --line: #2c2c2a;
+      --blue: #3987e5;
+      --orange: #d95926;
+      --green: #0ca30c;
+      --red: #e66767;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+  header { margin-bottom: 40px; }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 30px; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); font-size: 16px; max-width: 640px; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+  .badges img { height: 20px; display: block; }
+  nav.top-links {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    margin-top: 22px; padding-top: 18px;
+    border-top: 1px dashed var(--line);
+  }
+  nav.top-links a {
+    color: var(--blue); text-decoration: none; font-size: 14px; font-weight: 600;
+  }
+  nav.top-links a:hover { text-decoration: underline; }
+
+  .divider { border: 0; border-top: 1px dotted var(--line); margin: 40px 0; }
+
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-3); font-weight: 700; margin: 0 0 18px;
+  }
+  h3 { font-size: 19px; margin: 0 0 8px; }
+  p { color: var(--ink-2); margin: 0 0 14px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 8px; }
+  @media (max-width: 640px) { .stat-row { grid-template-columns: 1fr; } }
+  .stat {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    padding: 18px;
+  }
+  .stat .label { font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
+  .stat .value { font-size: 26px; font-weight: 700; }
+  .stat .value.warn { color: var(--red); }
+  .stat .value.good { color: var(--green); }
+  .stat .note { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+
+  .finding {
+    border-left: 3px solid var(--blue);
+    padding: 4px 0 4px 18px;
+    margin-bottom: 26px;
+  }
+  .finding.risk { border-left-color: var(--red); }
+  .finding.good { border-left-color: var(--green); }
+  .finding h3 { margin-bottom: 6px; }
+
+  figure { margin: 20px 0 30px; }
+  figure img {
+    width: 100%; height: auto; border-radius: var(--card-radius);
+    border: 1px solid var(--line); display: block;
+  }
+  figcaption { font-size: 13px; color: var(--ink-3); margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0 20px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-3); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.highlight td { font-weight: 700; color: var(--ink); }
+
+  .pipeline { display: flex; flex-wrap: wrap; gap: 0; align-items: center; margin: 10px 0 24px; }
+  .pipeline .step {
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+  }
+  .pipeline .arrow { color: var(--ink-3); padding: 0 8px; font-size: 14px; }
+
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .cta {
+    display: inline-block; padding: 10px 18px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    border: 1px solid var(--line);
+  }
+  .cta.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .cta.secondary { color: var(--ink); }
+
+  footer {
+    margin-top: 60px; padding-top: 20px; border-top: 1px dotted var(--line);
+    font-size: 12.5px; color: var(--ink-3);
+  }
+  footer a { color: var(--ink-3); }
+  code { font-size: 0.92em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Bridge · LAMF Cross-Sell &amp; Unit Economics Engine</div>
+    <h1>Borrow instead of break: the live findings</h1>
+    <p class="sub">
+      This page is generated from the actual pipeline output in
+      <a href="https://github.com/Navneet-Scaler/bridge">Navneet-Scaler/bridge</a>,
+      hosted on GitHub Pages and rebuilt as the analysis changes. Every number
+      below traces to a committed test or a query against the live database.
+    </p>
+    <div class="badges">
+      <img src="https://github.com/Navneet-Scaler/bridge/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status">
+      <img src="https://img.shields.io/github/v/tag/Navneet-Scaler/bridge?label=version" alt="version">
+      <img src="https://img.shields.io/badge/tests-112%20passing-0ca30c" alt="112 tests passing">
+      <img src="https://img.shields.io/badge/python-3.12-2a78d6" alt="python 3.12">
+      <img src="https://img.shields.io/github/license/Navneet-Scaler/bridge" alt="license">
+    </div>
+    <nav class="top-links">
+      <a href="https://github.com/Navneet-Scaler/bridge/blob/main/MEMO.md">Decision memo</a>
+      <a href="https://github.com/Navneet-Scaler/bridge/blob/main/ASSUMPTIONS.md">Assumptions</a>
+      <a href="https://github.com/Navneet-Scaler/bridge/blob/main/dashboards/metabase_notes.md">Dashboard</a>
+      <a href="https://github.com/Navneet-Scaler/bridge#quickstart--setup">Quickstart</a>
+      <a href="https://github.com/Navneet-Scaler/bridge/releases">Releases</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>The question</h2>
+    <p style="font-size:17px; color:var(--ink); max-width:640px;">
+      If BlinkMoney pushes LAMF harder, who should be targeted first, and what
+      does it do to revenue?
+    </p>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <h2>Headline numbers</h2>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="label">Median portfolio in this cohort</div>
+        <div class="value warn">Rs 862</div>
+        <div class="note">vs a Rs 25,000 industry minimum ticket</div>
+      </div>
+      <div class="stat">
+        <div class="label">Propensity model, top predictor</div>
+        <div class="value">5.06&times;</div>
+        <div class="note">active_day_ratio, per 1 SD, vs 1.07&times; for portfolio value</div>
+      </div>
+      <div class="stat">
+        <div class="label">Nudge effect on SIP breakage</div>
+        <div class="value good">&minus;11.8pp</div>
+        <div class="note">p = 0.0029, 95% CI &minus;19.3 to &minus;4.0</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <div class="finding risk">
+      <h3>1. This cohort cannot support LAMF at real economics</h3>
+      <p>
+        A Rs 21/day micro-SIP book, one year in, has a median portfolio of
+        Rs 862 and a maximum of Rs 11,841. The industry's typical minimum
+        ticket is Rs 25,000. Three independent parts of the pipeline
+        converge on this same wall: the simulation could not seed an
+        eligible population at that threshold, the unit economics
+        calculator derives a breakeven ticket of <strong>Rs 22,857</strong>
+        from cost structure alone (within 9% of the industry figure,
+        by a completely different route), and a live query against the
+        collateral table shows coverage falling to exactly zero at that
+        price, not tapering toward it. Every revenue figure this project
+        produces is an upper bound on a book that could not be written
+        today.
+      </p>
+    </div>
+
+    <div class="finding">
+      <h3>2. Consistency predicts candidacy five times better than portfolio size</h3>
+      <p>
+        The propensity model (logistic regression, held-out ROC-AUC 0.870)
+        found that <code>active_day_ratio</code>, sourced directly from
+        Cadence's streak output, carries an odds ratio of 5.06&times; per
+        standard deviation, against 1.07&times; for raw portfolio value.
+        Investing reliably every day is a far stronger signal of LAMF
+        candidacy than how much money is sitting in the account.
+      </p>
+      <figure>
+        <img src="images/propensity_odds_ratios.png" alt="Odds ratio forest plot for the LAMF propensity model">
+        <figcaption>Odds ratio per 1 standard deviation, held-out test set. Red bars raise candidacy odds, blue bars lower it.</figcaption>
+      </figure>
+      <table>
+        <thead><tr><th>Feature</th><th class="num">Odds ratio</th><th>Direction</th></tr></thead>
+        <tbody>
+          <tr class="highlight"><td>active_day_ratio</td><td class="num">5.06&times;</td><td>increases</td></tr>
+          <tr><td>streak_breaks</td><td class="num">2.37&times;</td><td>increases</td></tr>
+          <tr><td>city_tier_tier_3</td><td class="num">1.30&times;</td><td>increases</td></tr>
+          <tr><td>portfolio_value</td><td class="num">1.07&times;</td><td>increases</td></tr>
+          <tr><td>tenure_days</td><td class="num">0.60&times;</td><td>decreases</td></tr>
+          <tr><td>kyc_incomplete</td><td class="num">0.43&times;</td><td>decreases</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="finding good">
+      <h3>3. The borrow nudge works, independent of the collateral problem</h3>
+      <p>
+        Among users who actually cleared the eligibility screen, showing
+        "borrow instead of withdraw" cut SIP breakage from 45.2% to 33.4%,
+        a change of &minus;11.8 percentage points (p = 0.0029). The two
+        arms were balanced on every pre-treatment covariate checked before
+        the outcome was examined (p = 0.88 on eligibility, p = 0.42 on the
+        size of the cash need), which is what licenses reading this as
+        causal rather than as selection.
+      </p>
+      <figure>
+        <img src="images/nudge_breakage_by_arm.png" alt="SIP breakage rate by treatment arm, intention-to-treat and among eligible users">
+        <figcaption>Breakage rate by arm. Both the intention-to-treat estimate and the eligible-only estimate are shown, since quoting only the latter would overstate the intervention.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <h2>How the pipeline gets here</h2>
+    <div class="pipeline">
+      <span class="step">Cadence: streaks &amp; transactions</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Simulate portfolios &amp; liquidity events</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Leakage-safe features</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Propensity model</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Unit economics</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Nudge validation</span>
+      <span class="arrow">&rarr;</span>
+      <span class="step">Weekly report &amp; dashboard</span>
+    </div>
+    <p>
+      Full architecture, the entity relationship diagram, and setup
+      instructions are in the
+      <a href="https://github.com/Navneet-Scaler/bridge#readme">repository README</a>.
+      Bridge extends Cadence's shared Postgres database rather than
+      standing up its own; it cannot run standalone, and the README says
+      so directly rather than leaving that discovery to a reviewer.
+    </p>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <h2>Go deeper</h2>
+    <div class="cta-row">
+      <a class="cta primary" href="https://github.com/Navneet-Scaler/bridge">View the repository</a>
+      <a class="cta secondary" href="https://github.com/Navneet-Scaler/bridge/blob/main/MEMO.md">Read the decision memo</a>
+      <a class="cta secondary" href="https://github.com/Navneet-Scaler/bridge/blob/main/ASSUMPTIONS.md">Read the assumptions</a>
+      <a class="cta secondary" href="https://github.com/Navneet-Scaler/bridge/actions">View CI runs</a>
+    </div>
+  </section>
+
+  <footer>
+    Rebuilt from the pipeline's own output, not hand-typed. Source for this
+    page: <code>docs/index.html</code> in the repository above. Every figure
+    quoted here is reproduced by <code>make all</code> against a local
+    Postgres instance seeded from Cadence.
+  </footer>
+
+</div>
+</body>
+</html>
