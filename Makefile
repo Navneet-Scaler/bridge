@@ -49,6 +49,9 @@ nudge:  ## Run the borrow-instead-of-withdraw treatment/control test
 report:  ## Generate the weekly loan pipeline health report
 	$(PY) -m src.reporting.loan_pipeline_report
 
+dashboard:  ## Provision the LAMF pipeline dashboard on the shared Metabase instance
+	$(PY) -m scripts.provision_metabase
+
 all: schema run-sim features train-model economics nudge report  ## Full pipeline, end to end
 
 test:  ## Run the test suite
