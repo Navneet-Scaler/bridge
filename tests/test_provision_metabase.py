@@ -1,7 +1,7 @@
 """Tests for the dashboard-questions parser.
 
 The rest of provision_metabase.py talks to a live Metabase instance and is
-exercised manually via `make dashboard` — not something to fake convincingly in
+exercised manually via `make dashboard`, not something to fake convincingly in
 a unit test. What *is* testable without one, and worth testing, is the parser:
 it is the mechanism that keeps the dashboard from drifting out of sync with
 sql/dashboard_questions.sql, so a parsing bug would silently corrupt every card.
@@ -9,11 +9,18 @@ sql/dashboard_questions.sql, so a parsing bug would silently corrupt every card.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
 from scripts.provision_metabase import QUESTIONS_PATH, parse_questions
+
+
+def _normalize(text: str) -> str:
+    """Lowercase and drop punctuation, so a comma in one file and a colon in
+    another don't fail a loose substring check that only cares about words."""
+    return re.sub(r"[^\w\s]", "", text.lower())
 
 
 def write_sql(tmp_path: Path, text: str) -> Path:
@@ -42,19 +49,21 @@ def test_card_titles_match_the_dashboard_notes() -> None:
     notes = (QUESTIONS_PATH.parent.parent / "dashboards" / "metabase_notes.md").read_text()
 
     # A loose check: the first few words of each title should appear in the
-    # notes table, not an exact string match against markdown formatting.
+    # notes table. Punctuation is normalized away first so a comma in the SQL
+    # title and a colon in the markdown table don't fail an otherwise-matching
+    # comparison.
+    normalized_notes = _normalize(notes)
     for _, (title, _) in questions.items():
-        headline = title.split("—")[0].strip()
-        first_words = " ".join(headline.split()[:3])
-        assert first_words.lower() in notes.lower(), f"{title!r} not referenced in dashboard notes"
+        first_words = _normalize(" ".join(title.split()[:3]))
+        assert first_words in normalized_notes, f"{title!r} not referenced in dashboard notes"
 
 
 def test_two_cards_parse_from_a_minimal_file(tmp_path: Path) -> None:
     text = """\
--- CARD 1 — First card
+-- CARD 1: First card
 SELECT 1;
 
--- CARD 2 — Second card
+-- CARD 2: Second card
 SELECT 2;
 """
     questions = parse_questions(write_sql(tmp_path, text))
@@ -65,7 +74,7 @@ SELECT 2;
 
 def test_comment_lines_within_a_card_are_stripped_but_sql_is_kept(tmp_path: Path) -> None:
     text = """\
--- CARD 1 — Explained card
+-- CARD 1: Explained card
 -- This comment explains the card and must not appear in the query sent to
 -- Metabase, since it is not executable SQL.
 SELECT user_id
@@ -81,7 +90,7 @@ WHERE city_tier = 'tier_1';
 
 def test_a_multiline_query_is_captured_whole(tmp_path: Path) -> None:
     text = """\
--- CARD 1 — Multiline card
+-- CARD 1: Multiline card
 WITH totals AS (
     SELECT user_id, SUM(amount) AS total
     FROM transactions
@@ -102,13 +111,13 @@ def test_no_card_headers_raises_with_a_useful_message(tmp_path: Path) -> None:
 
 
 def test_card_numbers_need_not_be_contiguous_or_ordered(tmp_path: Path) -> None:
-    """The parser must not assume the file lists cards 1..N in order — it should
+    """The parser must not assume the file lists cards 1..N in order. It should
     key strictly off the number in each header."""
     text = """\
--- CARD 5 — Out of order
+-- CARD 5: Out of order
 SELECT 5;
 
--- CARD 1 — Comes first in the file
+-- CARD 1: Comes first in the file
 SELECT 1;
 """
     questions = parse_questions(write_sql(tmp_path, text))
@@ -120,10 +129,10 @@ SELECT 1;
 def test_a_card_with_only_comments_and_no_sql_is_dropped(tmp_path: Path) -> None:
     """Guards against an empty card silently becoming an empty Metabase query."""
     text = """\
--- CARD 1 — Only commentary, no query
+-- CARD 1: Only commentary, no query
 -- someone started writing this card and never finished it
 
--- CARD 2 — A real card
+-- CARD 2: A real card
 SELECT 1;
 """
     questions = parse_questions(write_sql(tmp_path, text))

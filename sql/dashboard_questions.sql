@@ -1,5 +1,5 @@
 -- =============================================================================
--- Metabase dashboard questions — LAMF pipeline
+-- Metabase dashboard questions: LAMF pipeline
 -- =============================================================================
 --
 -- Every card on the Bridge dashboard, as a standalone query, for the same three
@@ -8,8 +8,8 @@
 -- runnable directly in psql without the app; and the dashboard and the Python
 -- analysis must not drift apart, so both read the same views.
 --
--- Read against v_lamf_pipeline and v_latest_portfolio where possible — the same
--- views loan_pipeline_report.py reads — rather than re-deriving the funnel logic
+-- Read against v_lamf_pipeline and v_latest_portfolio where possible, the same
+-- views loan_pipeline_report.py reads, rather than re-deriving the funnel logic
 -- here. A dashboard number and a script number computed by two different queries
 -- is exactly how a founder ends up quoting two different disbursal rates.
 --
@@ -18,7 +18,7 @@
 -- =============================================================================
 
 
--- CARD 1 — LAMF funnel, last 12 weeks (bar)
+-- CARD 1: LAMF funnel, last 12 weeks (bar)
 -- The top-line pipeline card. Every stage from one source, so the drop-offs
 -- reconcile by construction with the automated weekly report.
 SELECT week_start                                        AS "Week",
@@ -31,9 +31,9 @@ WHERE week_start >= (SELECT MAX(week_start) - INTERVAL '12 weeks' FROM v_lamf_pi
 ORDER BY week_start;
 
 
--- CARD 2 — Disbursal rate vs the assumed band (line)
--- The band [18%, 50%] mirrors DISBURSAL_RATE_BAND in loan_pipeline_report.py —
--- keep the two in sync if that constant changes. A week outside this line's
+-- CARD 2: Disbursal rate vs the assumed band (line)
+-- The band [18%, 50%] mirrors DISBURSAL_RATE_BAND in loan_pipeline_report.py.
+-- Keep the two in sync if that constant changes. A week outside this line's
 -- flat range is the same event the automated report flags.
 SELECT week_start                                                       AS "Week",
        ROUND(100.0 * disbursed / NULLIF(eligible, 0), 1)                AS "Disbursal rate %"
@@ -41,8 +41,8 @@ FROM v_lamf_pipeline
 ORDER BY week_start;
 
 
--- CARD 3 — Loan book composition by status (bar)
--- Active, closed, defaulted — the shape of the book right now, not the funnel
+-- CARD 3: Loan book composition by status (bar)
+-- Active, closed, defaulted: the shape of the book right now, not the funnel
 -- that produced it.
 SELECT status                                             AS "Status",
        COUNT(*)                                            AS "Loans",
@@ -52,7 +52,7 @@ GROUP BY 1
 ORDER BY "Loans" DESC;
 
 
--- CARD 4 — Nudge outcome: borrowed vs withdrew, by arm (bar) — THE decision card
+-- CARD 4: Nudge outcome, borrowed vs withdrew, by arm (bar)
 -- The nudge-validation headline, read straight from the ground-truth table
 -- rather than recomputed. This is the number nudge_validation.py's z-test
 -- explains the significance of.
@@ -65,7 +65,7 @@ GROUP BY 1, 2
 ORDER BY 1, 2;
 
 
--- CARD 5 — SIP breakage rate by arm (bar)
+-- CARD 5: SIP breakage rate by arm (bar)
 -- The outcome the nudge exists to prevent. Pairs with card 4: card 4 shows what
 -- users did, this shows what it cost them not to borrow.
 SELECT e.arm                                                            AS "Arm",
@@ -78,7 +78,7 @@ GROUP BY 1
 ORDER BY 1;
 
 
--- CARD 6 — Average loan ticket vs the market-standard minimum (table)
+-- CARD 6: Average loan ticket vs the market-standard minimum (table)
 -- The single most important number on this dashboard. avg(disbursed_amount) is
 -- what this book is actually writing; Rs 25,000 is what the LAMF market
 -- typically requires per loan. See MIN_PORTFOLIO_FOR_LAMF in
@@ -89,7 +89,7 @@ SELECT ROUND(AVG(disbursed_amount), 2)                     AS "Avg ticket (Rs)",
 FROM loans;
 
 
--- CARD 7 — Collateral coverage by threshold (bar)
+-- CARD 7: Collateral coverage by threshold (bar)
 -- Same shape as collateral_profile() in generate_liquidity_events.py, read
 -- directly from the latest portfolio marks rather than recomputed in Python, so
 -- this card stays live as new snapshots load.
@@ -104,7 +104,7 @@ GROUP BY 1
 ORDER BY 1;
 
 
--- CARD 8 — Net revenue at actuals vs assumed scenarios (table)
+-- CARD 8: Net revenue at actuals vs assumed scenarios (table)
 -- Mirrors reconcile_against_scenarios() in loan_pipeline_report.py. Kept as a
 -- static base/optimistic/pessimistic reference row set here (Metabase native
 -- SQL cannot call back into the Python economics model), with actuals computed
