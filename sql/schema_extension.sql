@@ -53,7 +53,7 @@ BEGIN
     IF to_regclass('public.user_streaks') IS NULL THEN
         RAISE EXCEPTION
             'Table "user_streaks" was not found. Bridge''s propensity model reads '
-            'investing consistency from Cadence''s streak output — run Cadence''s '
+            'investing consistency from Cadence''s streak output, run Cadence''s '
             'streak builder before applying this extension.';
     END IF;
 END
@@ -85,9 +85,9 @@ CREATE TABLE portfolio_snapshots (
 );
 
 COMMENT ON TABLE portfolio_snapshots IS
-    'Daily mark-to-market portfolio value per user. Grown from Cadence''s successful sip_daily_transactions compounding at the assumed market return — so a user''s investing consistency drives their collateral base directly, which is the mechanism linking the two projects.';
+    'Daily mark-to-market portfolio value per user. Grown from Cadence''s successful sip_daily_transactions compounding at the assumed market return , so a user''s investing consistency drives their collateral base directly, which is the mechanism linking the two projects.';
 COMMENT ON COLUMN portfolio_snapshots.portfolio_value IS
-    'Collateral base for the loan-to-value calculation. UNIQUE on (user_id, snapshot_date) because two marks for one user-day is a data error, not a legitimate history — the constraint Cadence''s transaction table deliberately lacks (DQ-02), applied here from the start.';
+    'Collateral base for the loan-to-value calculation. UNIQUE on (user_id, snapshot_date) because two marks for one user-day is a data error, not a legitimate history , the constraint Cadence''s transaction table deliberately lacks (DQ-02), applied here from the start.';
 
 -- A user taking money out. The `sip_broken` flag is the outcome the whole
 -- project exists to prevent.
@@ -117,7 +117,7 @@ CREATE TABLE loan_applications (
 );
 
 COMMENT ON TABLE loan_applications IS
-    'One row per borrow request. Separate from loans so the funnel — applied -> eligible -> approved -> disbursed — stays visible; collapsing them into one table would hide exactly the drop-offs the pipeline dashboard exists to surface.';
+    'One row per borrow request. Separate from loans so the funnel , applied -> eligible -> approved -> disbursed , stays visible; collapsing them into one table would hide exactly the drop-offs the pipeline dashboard exists to surface.';
 COMMENT ON COLUMN loan_applications.eligible IS
     'Rule-based screen (KYC verified, portfolio above the minimum, tenure above the minimum). NULL means not yet evaluated, which is different from FALSE.';
 
@@ -136,7 +136,7 @@ CREATE TABLE loans (
 COMMENT ON TABLE loans IS
     'Disbursed loans. UNIQUE on application_id: one application can produce at most one loan, and without the constraint a double-disbursal bug would silently double the loan book.';
 COMMENT ON COLUMN loans.interest_rate IS
-    'Annual rate charged to the borrower, defaulting to the 9.99% the product advertises. This is a PRODUCT figure, not an assumption about BlinkMoney''s margin — what the company earns on it is modelled separately and documented in ASSUMPTIONS.md.';
+    'Annual rate charged to the borrower, defaulting to the 9.99% the product advertises. This is a PRODUCT figure, not an assumption about BlinkMoney''s margin , what the company earns on it is modelled separately and documented in ASSUMPTIONS.md.';
 COMMENT ON COLUMN loans.status IS
     'active | closed | default. Constrained here on purpose: Cadence''s equivalent status column has no CHECK (its DQ-04), and the resulting case-mismatched rows silently broke streak construction. Not repeating that.';
 
@@ -153,7 +153,7 @@ CREATE TABLE borrow_nudges (
 COMMENT ON TABLE borrow_nudges IS
     'The intervention: a prompt to borrow against the portfolio rather than sell it. Fired at the moment a liquidity need is detected.';
 COMMENT ON COLUMN borrow_nudges.resulted_in_loan IS
-    'Outcome of the nudge. STRICTLY off-limits as a propensity model feature — it is only known after the event being predicted, and using it would be textbook leakage. tests/test_feature_engineering.py asserts it never enters the feature set.';
+    'Outcome of the nudge. STRICTLY off-limits as a propensity model feature , it is only known after the event being predicted, and using it would be textbook leakage. tests/test_feature_engineering.py asserts it never enters the feature set.';
 
 
 -- =============================================================================
@@ -175,11 +175,11 @@ CREATE TABLE sim_liquidity_events (
 );
 
 COMMENT ON TABLE sim_liquidity_events IS
-    'SIMULATION ONLY — the generated cash-need events and how each resolved. Never treat as an observed field. Kept in its own table so it cannot be mistaken for production data, and so the analysis can be checked against the effect that was planted.';
+    'SIMULATION ONLY , the generated cash-need events and how each resolved. Never treat as an observed field. Kept in its own table so it cannot be mistaken for production data, and so the analysis can be checked against the effect that was planted.';
 COMMENT ON COLUMN sim_liquidity_events.arm IS
     'treatment = shown the borrow nudge, control = not shown. Assigned at the event, independently of the user''s attributes, so the comparison is not contaminated by selection on who looked like a good borrower.';
 COMMENT ON COLUMN sim_liquidity_events.was_eligible IS
-    'Whether the user cleared the eligibility screen at event time. Recorded separately from resolution because an ineligible treatment user cannot borrow however good the nudge is — mixing the two would understate the nudge''s effect on the population it can actually reach.';
+    'Whether the user cleared the eligibility screen at event time. Recorded separately from resolution because an ineligible treatment user cannot borrow however good the nudge is , mixing the two would understate the nudge''s effect on the population it can actually reach.';
 
 
 -- =============================================================================
@@ -226,7 +226,7 @@ FROM stages
 GROUP BY 1;
 
 COMMENT ON VIEW v_lamf_pipeline IS
-    'Weekly LAMF funnel. Counts every stage from the same base so the drop-offs reconcile by construction — the disbursal rate on the dashboard and the one in the weekly report cannot disagree, because there is only one definition.';
+    'Weekly LAMF funnel. Counts every stage from the same base so the drop-offs reconcile by construction , the disbursal rate on the dashboard and the one in the weekly report cannot disagree, because there is only one definition.';
 
 
 -- =============================================================================
