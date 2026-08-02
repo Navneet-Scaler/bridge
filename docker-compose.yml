@@ -1,0 +1,57 @@
+# Bridge deliberately does NOT define its own database.
+#
+# The `name:` below pins the Compose project to `cadence`, and the service,
+# container and volume names match Cadence's exactly. Bringing this up from the
+# Bridge directory therefore attaches to the *same* container and the *same*
+# named volume that Cadence uses — it does not create a parallel one.
+#
+# That is the whole point: Bridge's tables are a schema extension of Cadence's,
+# with foreign keys pointing at Cadence's `users` table. Two databases would mean
+# no foreign keys, no shared `user_id`, and no way to feed Cadence's streak
+# output into Bridge's propensity model — which is the connection this project
+# exists to demonstrate.
+#
+# Normally you would just run `make db-up` in the Cadence repo. This file exists
+# so Bridge can bring the shared stack up too, without anyone having to remember
+# which directory owns it.
+name: cadence
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: cadence-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-cadence_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: ${DB_NAME:-cadence}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - cadence_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cadence_user} -d ${DB_NAME:-cadence}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  metabase:
+    image: metabase/metabase:v0.50.21
+    container_name: cadence-metabase
+    restart: unless-stopped
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase_app
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${DB_USER:-cadence_user}
+      MB_DB_PASS: ${DB_PASSWORD:-changeme}
+      MB_DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  cadence_pgdata:
+    name: cadence_pgdata
